@@ -12,21 +12,23 @@ type Ent struct {
 	D    int16 // direction in degrees, 0 <= D < 360
 }
 
-type State struct {
-	E []Ent
+type Player struct {
+	Ent
 }
 
-func (e Ent) Move(t time.Duration) (f Ent) {
-	f = e
-	f.X += int16(int64(e.V) * (int64(t) / 1000) * int64(Cos[e.D]) / 1e10)
-	f.Y += int16(int64(e.V) * (int64(t) / 1000) * int64(Sin[e.D]) / 1e10)
-	return
+type State struct {
+	E []*Ent
+	P []*Player
+}
+
+func (e *Ent) Move(t time.Duration) {
+	e.X += int16(int64(e.V) * (int64(t) / 1000) * int64(Cos[e.D]) / 1e9)
+	e.Y += int16(int64(e.V) * (int64(t) / 1000) * int64(Sin[e.D]) / 1e9)
 }
 
 func (s *State) Advance() {
-	for i := range s.E {
-		s.E[i] = s.E[i].Move(UpdateInterval)
-		s.E[i].D = (s.E[i].D + 10) % 360
+	for _, e := range s.P {
+		e.Move(UpdateInterval)
 	}
 }
 

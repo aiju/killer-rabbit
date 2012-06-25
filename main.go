@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
+	"time"
 )
 
 func vital(err error) {
@@ -15,11 +17,12 @@ func vital(err error) {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	serverMode := flag.Bool("server", false, "run in server mode")
 	join := flag.String("join", "", "join a game")
 	flag.Parse()
 	if *serverMode {
-		fmt.Println(StartServer(1337))
+		vital(StartServer(1337))
 	}
 	if *join != "" {
 		addr, err := net.ResolveUDPAddr("udp", *join)
@@ -28,11 +31,10 @@ func main() {
 			return
 		}
 		update := make(chan *State)
+		move := make(chan Ent)
 		go func() {
-			for x := range update {
-				fmt.Println(x)
-			}
+			vital(StartClient(addr, update, move))
 		}()
-		fmt.Println(StartClient(addr, update))
+		vital(StartGraphics(update, move))
 	}
 }

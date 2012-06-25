@@ -9,6 +9,7 @@ import (
 
 const (
 	TJoin = iota
+	TMove
 	TUpdate
 	RAck
 )
@@ -17,6 +18,7 @@ type SClient struct {
 	Id         uint32
 	Addr       *net.UDPAddr
 	SSeq, CSeq uint32
+	P          *Player
 }
 
 type MessageHeader struct {
@@ -35,6 +37,7 @@ type Server struct {
 	Conn    *net.UDPConn
 	Clients map[uint32]*SClient
 	St      *State
+	LastUp  time.Time
 }
 
 func (s *Server) Recv() (m *Message, err error) {
@@ -68,7 +71,8 @@ func (s *Server) Handle(m *Message) {
 		c.Id = m.Id
 		c.CSeq = m.Seq
 		c.Addr = m.Addr
-		s.St.E = append(s.St.E, Ent{300, 300, 100, 0})
+		c.P = &Player{Ent{3000, 3000, 0, 0}}
+		s.St.P = append(s.St.P, c.P)
 		s.Clients[m.Id] = c
 		s.Ack(m)
 		return
@@ -79,6 +83,14 @@ func (s *Server) Handle(m *Message) {
 	}
 	c.CSeq = m.Seq
 	c.Addr = m.Addr
+	auxb := bytes.NewBuffer(m.Aux)
+	switch m.Type {
+	case TMove:
+		var e Ent
+		binary.Read(auxb, binary.LittleEndian, &e)
+		c.P.V = e.V
+		c.P.D = e.D
+	}
 }
 
 func StartServer(port int) error {
@@ -110,7 +122,7 @@ func StartServer(port int) error {
 			return err
 		case m := <-in:
 			s.Handle(m)
-		case <-ticks:
+		case s.LastUp = <-ticks:
 			s.St.Advance()
 			p := s.St.Serialize()
 			for _, c := range s.Clients {

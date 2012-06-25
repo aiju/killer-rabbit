@@ -34,7 +34,7 @@ func (c *Client) Send(m *Message) {
 	c.Conn.Write(bufb.Bytes())
 }
 
-func StartClient(addr *net.UDPAddr, update chan<- *State) error {
+func StartClient(addr *net.UDPAddr, update chan<- *State, move <-chan Ent) error {
 	var err error
 	var m *Message
 	var i int
@@ -62,7 +62,19 @@ func StartClient(addr *net.UDPAddr, update chan<- *State) error {
 	if i == JoinRetry {
 		return EConnect
 	}
+	c.CSeq++
 	c.Conn.SetReadDeadline(time.Time{})
+	go func() {
+		for {
+			select {
+			case e := <-move:
+				bufb := new(bytes.Buffer)
+				binary.Write(bufb, binary.LittleEndian, &e)
+				c.Send(&Message{MessageHeader{c.Id, c.CSeq, TMove}, bufb.Bytes(), nil})
+				c.CSeq++
+			}
+		}
+	}()
 	for {
 		m, err = c.Recv()
 		if err != nil {
