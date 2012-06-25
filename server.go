@@ -71,7 +71,7 @@ func (s *Server) Handle(m *Message) {
 		c.Id = m.Id
 		c.CSeq = m.Seq
 		c.Addr = m.Addr
-		c.P = &Player{Ent{3000, 3000, 0, 0}}
+		c.P = &Player{Ent{3000, 3000, 0, 0}, 0, 0}
 		s.St.P = append(s.St.P, c.P)
 		s.Clients[m.Id] = c
 		s.Ack(m)
@@ -88,8 +88,8 @@ func (s *Server) Handle(m *Message) {
 	case TMove:
 		var e Ent
 		binary.Read(auxb, binary.LittleEndian, &e)
-		c.P.V = e.V
-		c.P.D = e.D
+		c.P.MV = e.V
+		c.P.MD = e.D
 	}
 }
 
@@ -123,7 +123,10 @@ func StartServer(port int) error {
 		case m := <-in:
 			s.Handle(m)
 		case s.LastUp = <-ticks:
-			s.St.Advance()
+			s.St.Advance(UpdateInterval)
+			for _, p := range s.St.P {
+				p.V, p.D = p.MV, p.MD
+			}
 			p := s.St.Serialize()
 			for _, c := range s.Clients {
 				if c.Addr != nil {

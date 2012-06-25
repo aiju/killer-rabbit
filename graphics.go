@@ -36,6 +36,10 @@ func RenderScene(s *State, dt time.Duration) {
 	}
 }
 
+var dir = [16]int16 {
+	-1, 90  , 180 , 135 , 270 , -1, 225 , 180 , 0, 45, -1, 90, 315, 0, 270, -1,
+}
+
 func StartGraphics(update chan *State, move chan Ent) error {
 	rc := sdl.Init(sdl.INIT_VIDEO)
 	if rc == -1 {
@@ -55,6 +59,7 @@ func StartGraphics(update chan *State, move chan Ent) error {
 	SetupGL()
 
 	tick := time.Tick(time.Second / 50)
+	moving, oldmoving := 0, 0
 	for {
 		select {
 		case ev := <-sdl.Events:
@@ -62,37 +67,42 @@ func StartGraphics(update chan *State, move chan Ent) error {
 				return nil
 			}
 			if k, ok := ev.(sdl.KeyboardEvent); ok {
-				if k.Keysym.Sym == 'a' {
-					if k.Type == sdl.KEYDOWN {
-						move <- Ent{0, 0, 100, 180}
+				switch k.Type {
+				case sdl.KEYDOWN:
+					switch k.Keysym.Sym {
+					case 's':
+						moving &= ^4
+						moving |= 1
+					case 'a':
+						moving &= ^8
+						moving |= 2
+					case 'w':
+						moving &= ^1
+						moving |= 4
+					case 'd':
+						moving &= ^2
+						moving |= 8
 					}
-					if k.Type == sdl.KEYUP {
-						move <- Ent{0, 0, 0, 180}
+				case sdl.KEYUP:
+					switch k.Keysym.Sym {
+					case 's':
+						moving &= ^1
+					case 'a':
+						moving &= ^2
+					case 'w':
+						moving &= ^4
+					case 'd':
+						moving &= ^8
 					}
 				}
-				if k.Keysym.Sym == 's' {
-					if k.Type == sdl.KEYDOWN {
-						move <- Ent{0, 0, 100, 90}
+				if moving != oldmoving {
+					e := Ent{0, 0, 0, 0}
+					if dir[moving] >= 0 {
+						e.V = 100
+						e.D = dir[moving]
 					}
-					if k.Type == sdl.KEYUP {
-						move <- Ent{0, 0, 0, 90}
-					}
-				}
-				if k.Keysym.Sym == 'd' {
-					if k.Type == sdl.KEYDOWN {
-						move <- Ent{0, 0, 100, 0}
-					}
-					if k.Type == sdl.KEYUP {
-						move <- Ent{0, 0, 0, 0}
-					}
-				}
-				if k.Keysym.Sym == 'w' {
-					if k.Type == sdl.KEYDOWN {
-						move <- Ent{0, 0, 100, 270}
-					}
-					if k.Type == sdl.KEYUP {
-						move <- Ent{0, 0, 0, 270}
-					}
+					move <- e
+					oldmoving = moving
 				}
 			}
 		case s = <-update:

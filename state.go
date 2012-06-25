@@ -14,6 +14,7 @@ type Ent struct {
 
 type Player struct {
 	Ent
+	MV, MD int16
 }
 
 type State struct {
@@ -26,9 +27,9 @@ func (e *Ent) Move(t time.Duration) {
 	e.Y += int16(int64(e.V) * (int64(t) / 1000) * int64(Sin[e.D]) / 1e9)
 }
 
-func (s *State) Advance() {
+func (s *State) Advance(t time.Duration) {
 	for _, e := range s.P {
-		e.Move(UpdateInterval)
+		e.Move(t)
 	}
 }
 
