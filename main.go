@@ -31,10 +31,12 @@ func main() {
 			return
 		}
 		update := make(chan *State)
-		move := make(chan Ent)
+		move := make(chan MoveMsg)
+		quit := make(chan bool)
+		id := rand.Uint32()
 		go func() {
-			vital(StartClient(addr, update, move))
+			vital(StartGraphics(id, update, move, quit))
 		}()
-		vital(StartGraphics(update, move))
+		vital(StartClient(addr, id, update, move, quit))
 	}
 }

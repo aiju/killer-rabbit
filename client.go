@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"math/rand"
 	"net"
 	"time"
 )
@@ -34,13 +33,13 @@ func (c *Client) Send(m *Message) {
 	c.Conn.Write(bufb.Bytes())
 }
 
-func StartClient(addr *net.UDPAddr, update chan<- *State, move <-chan Ent) error {
+func StartClient(addr *net.UDPAddr, id uint32, update chan<- *State, move <-chan MoveMsg, quit chan bool) error {
 	var err error
 	var m *Message
 	var i int
 
 	c := new(Client)
-	c.Id = rand.Uint32()
+	c.Id = id
 	c.Conn, err = net.DialUDP("udp", nil, addr)
 	if err != nil {
 		return err
@@ -64,6 +63,8 @@ func StartClient(addr *net.UDPAddr, update chan<- *State, move <-chan Ent) error
 	}
 	c.CSeq++
 	c.Conn.SetReadDeadline(time.Time{})
+	end := 0
+	tick := time.Tick(PingInterval)
 	go func() {
 		for {
 			select {
@@ -72,11 +73,21 @@ func StartClient(addr *net.UDPAddr, update chan<- *State, move <-chan Ent) error
 				binary.Write(bufb, binary.LittleEndian, &e)
 				c.Send(&Message{MessageHeader{c.Id, c.CSeq, TMove}, bufb.Bytes(), nil})
 				c.CSeq++
+			case <-quit:
+				c.Send(&Message{MessageHeader{c.Id, c.CSeq, TQuit}, nil, nil})
+				c.Conn.Close()
+				end = 1
+			case <-tick:
+				c.Send(&Message{MessageHeader{c.Id, c.CSeq, TPing}, nil, nil})
+				c.CSeq++
 			}
 		}
 	}()
 	for {
 		m, err = c.Recv()
+		if end == 1 {
+			return nil
+		}
 		if err != nil {
 			return err
 		}

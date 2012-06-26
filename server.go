@@ -9,8 +9,11 @@ import (
 
 const (
 	TJoin = iota
+	TQuit
 	TMove
 	TUpdate
+	TPing
+	RPong
 	RAck
 )
 
@@ -19,6 +22,7 @@ type SClient struct {
 	Addr       *net.UDPAddr
 	SSeq, CSeq uint32
 	P          *Player
+	LastPing   time.Time
 }
 
 type MessageHeader struct {
@@ -31,6 +35,17 @@ type Message struct {
 	MessageHeader
 	Aux  []byte
 	Addr *net.UDPAddr
+}
+
+const (
+	MOVMOVING = 1 << iota
+	MOVFIRE
+)
+
+type MoveMsg struct {
+	Fl     uint8
+	D      int16
+	FX, FY int16
 }
 
 type Server struct {
@@ -71,8 +86,8 @@ func (s *Server) Handle(m *Message) {
 		c.Id = m.Id
 		c.CSeq = m.Seq
 		c.Addr = m.Addr
-		c.P = &Player{Ent{3000, 3000, 0, 0}, 0, 0}
-		s.St.P = append(s.St.P, c.P)
+		c.LastPing = time.Now()
+		c.P = s.St.Spawn(c.Id)
 		s.Clients[m.Id] = c
 		s.Ack(m)
 		return
@@ -83,13 +98,26 @@ func (s *Server) Handle(m *Message) {
 	}
 	c.CSeq = m.Seq
 	c.Addr = m.Addr
+	c.LastPing = time.Now()
 	auxb := bytes.NewBuffer(m.Aux)
 	switch m.Type {
+	case TQuit:
+		s.St.RemovePlayer(m.Id)
+		delete(s.Clients, m.Id)
 	case TMove:
-		var e Ent
+		var e MoveMsg
 		binary.Read(auxb, binary.LittleEndian, &e)
-		c.P.MV = e.V
+		if e.Fl&MOVMOVING != 0 {
+			c.P.MV = 100
+		} else {
+			c.P.MV = 0
+		}
+		if e.Fl&MOVFIRE != 0 {
+			c.P.Weapon.Fire(s.St, c.P)
+		}
 		c.P.MD = e.D
+		c.P.FX = e.FX
+		c.P.FY = e.FY
 	}
 }
 
@@ -123,7 +151,13 @@ func StartServer(port int) error {
 		case m := <-in:
 			s.Handle(m)
 		case s.LastUp = <-ticks:
-			s.St.Advance(UpdateInterval)
+			for _, c := range s.Clients {
+				if c.LastPing.Before(time.Now().Add(-PingTimeout)) {
+					s.Send(&Message{MessageHeader{c.Id, c.SSeq, TQuit}, nil, c.Addr})
+					s.St.RemovePlayer(c.Id)
+					delete(s.Clients, c.Id)
+				}
+			}
 			for _, p := range s.St.P {
 				p.V, p.D = p.MV, p.MD
 			}
@@ -134,6 +168,8 @@ func StartServer(port int) error {
 					c.SSeq++
 				}
 			}
+			s.St.Advance(UpdateInterval)
+
 		}
 	}
 	return nil

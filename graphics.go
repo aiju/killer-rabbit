@@ -21,26 +21,45 @@ func SetupGL() {
 func Quad(x, y float64) {
 	gl.Begin(gl.QUADS)
 	gl.Color4f(1, 0, 0, 1)
-	gl.Vertex2f(gl.Float(x+5), gl.Float(y+5))
-	gl.Vertex2f(gl.Float(x-5), gl.Float(y+5))
-	gl.Vertex2f(gl.Float(x-5), gl.Float(y-5))
-	gl.Vertex2f(gl.Float(x+5), gl.Float(y-5))
+	gl.Vertex2f(gl.Float(x+2), gl.Float(y+2))
+	gl.Vertex2f(gl.Float(x-2), gl.Float(y+2))
+	gl.Vertex2f(gl.Float(x-2), gl.Float(y-2))
+	gl.Vertex2f(gl.Float(x+2), gl.Float(y-2))
 	gl.End()
 }
 
+func Tri(x, y float64, r float64) {
+	gl.PushMatrix()
+	gl.Translatef(gl.Float(x), gl.Float(y), 0)
+	gl.Rotatef(gl.Float(r), 0, 0, 1)
+	gl.Begin(gl.TRIANGLES)
+	gl.Color4f(1, 0, 0, 1)
+	gl.Vertex2f(8, 0)
+	gl.Vertex2f(-8, -5)
+	gl.Vertex2f(-8, 5)
+	gl.End()
+	gl.PopMatrix()
+}
+
 func RenderScene(s *State, dt time.Duration) {
-	for _, e := range s.P {
+	for _, e := range s.E {
 		x := float64(e.X)/10 + 1e-9*float64(dt)*float64(e.V)*math.Cos(float64(e.D)*math.Pi/180)
 		y := float64(e.Y)/10 + 1e-9*float64(dt)*float64(e.V)*math.Sin(float64(e.D)*math.Pi/180)
 		Quad(x, y)
 	}
+	for _, e := range s.P {
+		x := float64(e.X)/10 + 1e-9*float64(dt)*float64(e.V)*math.Cos(float64(e.D)*math.Pi/180)
+		y := float64(e.Y)/10 + 1e-9*float64(dt)*float64(e.V)*math.Sin(float64(e.D)*math.Pi/180)
+		r := math.Atan2(float64(e.FY)-y, float64(e.FX)-x) * 180 / math.Pi
+		Tri(x, y, r)
+	}
 }
 
-var dir = [16]int16 {
-	-1, 90  , 180 , 135 , 270 , -1, 225 , 180 , 0, 45, -1, 90, 315, 0, 270, -1,
+var dir = [16]int16{
+	-1, 90, 180, 135, 270, -1, 225, 180, 0, 45, -1, 90, 315, 0, 270, -1,
 }
 
-func StartGraphics(update chan *State, move chan Ent) error {
+func StartGraphics(id uint32, update chan *State, move chan MoveMsg, quit chan bool) error {
 	rc := sdl.Init(sdl.INIT_VIDEO)
 	if rc == -1 {
 		return errors.New(sdl.GetError())
@@ -55,6 +74,7 @@ func StartGraphics(update chan *State, move chan Ent) error {
 	}
 	s := new(State)
 	ls := time.Now()
+	movem := MoveMsg{}
 
 	SetupGL()
 
@@ -64,6 +84,7 @@ func StartGraphics(update chan *State, move chan Ent) error {
 		select {
 		case ev := <-sdl.Events:
 			if _, ok := ev.(sdl.QuitEvent); ok {
+				quit <- true
 				return nil
 			}
 			if k, ok := ev.(sdl.KeyboardEvent); ok {
@@ -96,13 +117,25 @@ func StartGraphics(update chan *State, move chan Ent) error {
 					}
 				}
 				if moving != oldmoving {
-					e := Ent{0, 0, 0, 0}
+					movem.Fl &= 255 & ^MOVMOVING
 					if dir[moving] >= 0 {
-						e.V = 100
-						e.D = dir[moving]
+						movem.Fl |= MOVMOVING
+						movem.D = dir[moving]
 					}
-					move <- e
+					move <- movem
 					oldmoving = moving
+				}
+			}
+			if k, ok := ev.(sdl.MouseMotionEvent); ok {
+				movem.FX = int16(k.X)
+				movem.FY = int16(k.Y)
+				move <- movem
+			}
+			if k, ok := ev.(sdl.MouseButtonEvent); ok {
+				if k.Button == sdl.BUTTON_LEFT && k.State == sdl.PRESSED {
+					movem.Fl |= MOVFIRE
+					move <- movem
+					movem.Fl &= 255 & ^MOVFIRE
 				}
 			}
 		case s = <-update:
