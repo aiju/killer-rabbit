@@ -20,7 +20,7 @@ func (w *Pistol) Fire(s *State, p *Player) {
 	}
 	r := math.Atan2(float64(p.FY)-float64(p.Y)/10, float64(p.FX)-float64(p.X)/10) * 180 / math.Pi
 	e := Ent{p.X, p.Y, 1000, int16(r+720) % 360}
-	s.E = append(s.E, &e)
+	s.Ents = append(s.Ents, &e)
 	w.Time = time.Now()
 }
 

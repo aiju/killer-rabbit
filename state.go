@@ -15,13 +15,13 @@ type Ent struct {
 type Player struct {
 	Ent
 	Weapon
-	Id             uint32
-	MV, MD, FX, FY int16
+	Id     uint32
+	FX, FY int16
 }
 
 type State struct {
-	E []*Ent
-	P []*Player
+	Ents    []*Ent
+	Players []*Player
 }
 
 func (e *Ent) Move(t time.Duration) {
@@ -30,16 +30,16 @@ func (e *Ent) Move(t time.Duration) {
 }
 
 func (s *State) Advance(t time.Duration) {
-	for _, e := range s.E {
+	for _, e := range s.Ents {
 		e.Move(t)
 	}
-	for _, e := range s.P {
+	for _, e := range s.Players {
 		e.Move(t)
 	}
 }
 
 func (s State) Client(id uint32) *Player {
-	for _, e := range s.P {
+	for _, e := range s.Players {
 		if e.Id == id {
 			return e
 		}
@@ -52,14 +52,14 @@ func (s *State) Spawn(id uint32) *Player {
 	p.Ent = Ent{3000, 3000, 0, 0}
 	p.Weapon = new(Pistol)
 	p.Id = id
-	s.P = append(s.P, p)
+	s.Players = append(s.Players, p)
 	return p
 }
 
 func (s *State) RemovePlayer(id uint32) {
-	for i, e := range s.P {
+	for i, e := range s.Players {
 		if e.Id == id {
-			s.P = append(s.P[:i], s.P[i+1:]...)
+			s.Players = append(s.Players[:i], s.Players[i+1:]...)
 			return
 		}
 	}

@@ -42,12 +42,12 @@ func Tri(x, y float64, r float64) {
 }
 
 func RenderScene(s *State, dt time.Duration) {
-	for _, e := range s.E {
+	for _, e := range s.Ents {
 		x := float64(e.X)/10 + 1e-9*float64(dt)*float64(e.V)*math.Cos(float64(e.D)*math.Pi/180)
 		y := float64(e.Y)/10 + 1e-9*float64(dt)*float64(e.V)*math.Sin(float64(e.D)*math.Pi/180)
 		Quad(x, y)
 	}
-	for _, e := range s.P {
+	for _, e := range s.Players {
 		x := float64(e.X)/10 + 1e-9*float64(dt)*float64(e.V)*math.Cos(float64(e.D)*math.Pi/180)
 		y := float64(e.Y)/10 + 1e-9*float64(dt)*float64(e.V)*math.Sin(float64(e.D)*math.Pi/180)
 		r := math.Atan2(float64(e.FY)-y, float64(e.FX)-x) * 180 / math.Pi
@@ -117,9 +117,8 @@ func StartGraphics(id uint32, update chan *State, move chan MoveMsg, quit chan b
 					}
 				}
 				if moving != oldmoving {
-					movem.Fl &= 255 & ^MOVMOVING
+					movem.Moving = dir[moving] >= 0
 					if dir[moving] >= 0 {
-						movem.Fl |= MOVMOVING
 						movem.D = dir[moving]
 					}
 					move <- movem
@@ -133,9 +132,9 @@ func StartGraphics(id uint32, update chan *State, move chan MoveMsg, quit chan b
 			}
 			if k, ok := ev.(sdl.MouseButtonEvent); ok {
 				if k.Button == sdl.BUTTON_LEFT && k.State == sdl.PRESSED {
-					movem.Fl |= MOVFIRE
+					movem.FireStart = true
 					move <- movem
-					movem.Fl &= 255 & ^MOVFIRE
+					movem.FireStart = false
 				}
 			}
 		case s = <-update:
