@@ -88,15 +88,12 @@ func (s *Server) Handle(m *Message) {
 	c.CSeq = m.Seq
 	c.Addr = m.Addr
 	c.LastPing = time.Now()
-	auxb := bytes.NewBuffer(m.Aux)
 	switch m.Type {
 	case TQuit:
 		s.State.RemovePlayer(m.Id)
 		delete(s.Clients, m.Id)
 	case TMove:
-		var e MoveMsg
-		binary.Read(auxb, binary.LittleEndian, &e)
-		e.Process(s.State, c.Player)
+		MoveMsgDecode(m.Aux).Process(s.State, c.Player)
 	}
 }
 

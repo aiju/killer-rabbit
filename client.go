@@ -69,9 +69,7 @@ func StartClient(addr *net.UDPAddr, id uint32, update chan<- *State, move <-chan
 		for {
 			select {
 			case e := <-move:
-				bufb := new(bytes.Buffer)
-				binary.Write(bufb, binary.LittleEndian, &e)
-				c.Send(&Message{MessageHeader{c.Id, c.CSeq, TMove}, bufb.Bytes(), nil})
+				c.Send(&Message{MessageHeader{c.Id, c.CSeq, TMove}, e.Encode(), nil})
 				c.CSeq++
 			case <-quit:
 				c.Send(&Message{MessageHeader{c.Id, c.CSeq, TQuit}, nil, nil})

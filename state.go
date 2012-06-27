@@ -103,3 +103,17 @@ func (e MoveMsg) Process(s *State, p *Player) {
 		p.FX = e.FX
 		p.FY = e.FY
 }
+
+func (e MoveMsg) Encode() []byte {
+	bufb := new(bytes.Buffer)
+	enc := gob.NewEncoder(bufb)
+	vital(enc.Encode(e))
+	return bufb.Bytes()
+}
+
+func MoveMsgDecode(buf []byte) (m MoveMsg) {
+	bufb := bytes.NewBuffer(buf)
+	dec := gob.NewDecoder(bufb)
+	vital(dec.Decode(&m))
+	return
+}
