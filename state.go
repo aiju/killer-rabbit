@@ -24,6 +24,12 @@ type State struct {
 	Players []*Player
 }
 
+type MoveMsg struct {
+	Moving, FireStart bool
+	D                 int16
+	FX, FY            int16
+}
+
 func (e *Ent) Move(t time.Duration) {
 	e.X += int16(int64(e.V) * (int64(t) / 1000) * int64(Cos[e.D]) / 1e9)
 	e.Y += int16(int64(e.V) * (int64(t) / 1000) * int64(Sin[e.D]) / 1e9)
@@ -78,4 +84,22 @@ func StateDecode(buf []byte) *State {
 	dec := gob.NewDecoder(bufb)
 	vital(dec.Decode(s))
 	return s
+}
+
+func (s *State) Copy() *State {
+	return StateDecode(s.Serialize())
+}
+
+func (e MoveMsg) Process(s *State, p *Player) {
+		if e.Moving {
+			p.V = 100
+		} else {
+			p.V = 0
+		}
+		if e.FireStart {
+			p.Weapon.Fire(s, p)
+		}
+		p.D = e.D
+		p.FX = e.FX
+		p.FY = e.FY
 }

@@ -59,33 +59,17 @@ var dir = [16]int16{
 	-1, 90, 180, 135, 270, -1, 225, 180, 0, 45, -1, 90, 315, 0, 270, -1,
 }
 
-func StartGraphics(id uint32, update chan *State, move chan MoveMsg, quit chan bool) error {
-	rc := sdl.Init(sdl.INIT_VIDEO)
-	if rc == -1 {
-		return errors.New(sdl.GetError())
-	}
-	disp := sdl.SetVideoMode(800, 600, 32, sdl.OPENGL)
-	if disp == nil {
-		return errors.New(sdl.GetError())
-	}
-	err := gl.Init()
-	if err != nil {
-		return err
-	}
-	s := new(State)
-	ls := time.Now()
-	movem := MoveMsg{}
+func ProcessInput(move chan MoveMsg, quit chan bool, squit chan bool) {
+	var movem MoveMsg
+	var moving, oldmoving int
 
-	SetupGL()
-
-	tick := time.Tick(time.Second / 50)
-	moving, oldmoving := 0, 0
 	for {
 		select {
 		case ev := <-sdl.Events:
 			if _, ok := ev.(sdl.QuitEvent); ok {
 				quit <- true
-				return nil
+				squit <- true
+				return
 			}
 			if k, ok := ev.(sdl.KeyboardEvent); ok {
 				switch k.Type {
@@ -137,6 +121,34 @@ func StartGraphics(id uint32, update chan *State, move chan MoveMsg, quit chan b
 					movem.FireStart = false
 				}
 			}
+
+		}
+	}
+}
+
+func StartGraphics(id uint32, update chan *State, move chan MoveMsg, quit chan bool) error {
+	rc := sdl.Init(sdl.INIT_VIDEO)
+	if rc == -1 {
+		return errors.New(sdl.GetError())
+	}
+	disp := sdl.SetVideoMode(800, 600, 32, sdl.OPENGL)
+	if disp == nil {
+		return errors.New(sdl.GetError())
+	}
+	err := gl.Init()
+	if err != nil {
+		return err
+	}
+	s := new(State)
+	ls := time.Now()
+
+	SetupGL()
+
+	tick := time.Tick(time.Second / 50)
+	squit := make(chan bool)
+	go ProcessInput(move, quit, squit)
+	for {
+		select {
 		case s = <-update:
 			ls = time.Now()
 		case <-tick:
@@ -145,6 +157,8 @@ func StartGraphics(id uint32, update chan *State, move chan MoveMsg, quit chan b
 			gl.Translatef(0, 0, -1)
 			RenderScene(s, time.Now().Sub(ls))
 			sdl.GL_SwapBuffers()
+		case <-squit:
+			return nil
 		}
 	}
 	return nil

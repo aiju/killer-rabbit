@@ -37,12 +37,6 @@ type Message struct {
 	Addr *net.UDPAddr
 }
 
-type MoveMsg struct {
-	Moving, FireStart bool
-	D                 int16
-	FX, FY            int16
-}
-
 type Server struct {
 	Conn    *net.UDPConn
 	Clients map[uint32]*SClient
@@ -102,17 +96,7 @@ func (s *Server) Handle(m *Message) {
 	case TMove:
 		var e MoveMsg
 		binary.Read(auxb, binary.LittleEndian, &e)
-		if e.Moving {
-			c.Player.V = 100
-		} else {
-			c.Player.V = 0
-		}
-		if e.FireStart {
-			c.Player.Weapon.Fire(s.State, c.Player)
-		}
-		c.Player.D = e.D
-		c.Player.FX = e.FX
-		c.Player.FY = e.FY
+		e.Process(s.State, c.Player)
 	}
 }
 
