@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"time"
+	"math"
 )
 
 const (
@@ -12,8 +13,12 @@ const (
 	PingTimeout    = 20 * PingInterval
 	AckTimeout     = 500 * time.Millisecond
 	JoinRetry      = 5
+	PlayerSize = 50
+	MonsterSize = 80
 
 	PistolCooldown = time.Second
+
+	deg = math.Pi / 180
 )
 
 var (

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/gob"
-	"math"
 	"time"
 )
 
@@ -18,9 +17,7 @@ func (w *Pistol) Fire(s *State, p *Player) {
 	if !w.Time.IsZero() && w.Time.After(time.Now().Add(-PistolCooldown)) {
 		return
 	}
-	r := math.Atan2(float64(p.FY)-float64(p.Y)/10, float64(p.FX)-float64(p.X)/10) * 180 / math.Pi
-	e := Ent{p.X, p.Y, 1000, int16(r+720) % 360}
-	s.Ents = append(s.Ents, &e)
+	s.Bullets = append(s.Bullets, &Bullet{p.X, p.Y, 300, p.R()})
 	w.Time = time.Now()
 }
 
